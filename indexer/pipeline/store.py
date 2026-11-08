@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from .config import IndexerSettings
-from .models import Chunk
+from .models import Chunk, new_index_version
 
 
 def get_client(settings: IndexerSettings) -> Any:
@@ -34,6 +34,7 @@ def store(chunks: list[Chunk], vectors: list[list[float]], settings: IndexerSett
             "hnsw:space": "cosine",
             "embed_model": settings.embed_model,
             "dimension": dimension,
+            "index_version": new_index_version(),
         },
     )
 
