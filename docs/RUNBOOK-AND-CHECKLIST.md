@@ -28,7 +28,7 @@ Legend: `[x]` verified working, `[~]` exists but incomplete or unmerged, `[ ]` m
 - [x] Liveness `/healthz` touches no dependency. Readiness `/readyz` checks Chroma, non-empty collection, Redis, embedding model.
 - [~] Semantic cache: cosine threshold, never-cache rules, re-index expiry. **On branch `feat/api-semantic-cache`, not merged yet.**
 - [~] No silent embedding fallback in the API. **Same branch.** The indexer's `embed.py` still falls back silently to fake vectors (fix pending).
-- [ ] Startup embedding-pin check in `main.py` (the `STARTER-TODO(4.4)`). Only `/readyz` checks it today.
+- [x] Startup embedding-pin check in `main.py` and guardrails in `/readyz` (section 4.4).
 - [ ] Query pipeline: validate, retry once, canned fallback, abstain below the relevance floor, delimited retrieved text (prompt injection), citations restricted to retrieved chunks. `answer.py` implements about half of this.
 - [ ] Metrics beyond request count/latency: retrieval and generation latency, cache hit ratio, abstentions, fallbacks, tokens.
 - [ ] One JSON log line per request with `top_k`, chunk ids, scores, abstention flag.
