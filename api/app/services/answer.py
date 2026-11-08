@@ -17,7 +17,7 @@ from ..schemas import AskResponse, RetrievedRef
 log = logging.getLogger("rahbar.answer")
 
 
-from .cache import get_semantic_cache
+from .semantic_cache import get_semantic_cache
 
 
 def answer_question(
