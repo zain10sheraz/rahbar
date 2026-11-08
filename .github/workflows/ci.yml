@@ -21,7 +21,7 @@ jobs:
       - name: Run Python linter
         run: |
           pip install ruff
-          ruff check api/ indexer/ eval/
+          ruff check --select E,F,W --ignore E501 api/ indexer/ eval/
 
   manifests:
     runs-on: ubuntu-latest
