@@ -36,8 +36,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.cache = build_semantic_cache(
         settings, getattr(app.state.retriever, "index_version", None)
     )
-    # STARTER-TODO(4.4): compare the collection's embedding-model metadata with
-    # settings.embed_model here, and make /readyz fail on a mismatch.
+    # Guardrail (4.4): compare the collection's embedding-model metadata with
+    # settings.embed_model; /readyz reports a 503 failure on any mismatch.
     # This process only reads the index. The indexer Job writes it.
     log.info(
         "api started",

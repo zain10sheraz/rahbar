@@ -171,13 +171,23 @@ class SemanticCache:
                 if best is None or sim > best[0]:
                     best = (sim, entry)
             if stale:
-                self._backend.drop(stale)
+                self.invalidate(stale)
         except Exception as exc:  # the cache is an optimisation: a failure is a miss
             log.warning("cache lookup failed", extra={"error": str(exc)})
             return None
         if best is not None and best[0] >= self.threshold:
             return AskResponse.model_validate(best[1]["response"]), best[0]
         return None
+
+    def invalidate(self, ids: list[str]) -> None:
+        """Invalidate cache entries by ID (e.g. on version mismatch or expiry)."""
+        self._backend.drop(ids)
+
+    def flush(self) -> None:
+        """Flush/clear all entries from the semantic cache."""
+        all_ids = [e["id"] for e in self._backend.entries() if "id" in e]
+        if all_ids:
+            self._backend.drop(all_ids)
 
     def store(self, question: str, response: AskResponse) -> bool:
         """Cache the answer unless a never-cache rule applies. Return True when stored."""

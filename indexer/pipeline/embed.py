@@ -32,9 +32,13 @@ def embed(texts: list[str], settings: IndexerSettings) -> list[list[float]]:
                 )
                 response.raise_for_status()
                 data = response.json()
-                embeddings.extend(data.get("embeddings") or [])
-            except Exception:
-                # If model is unavailable or in offline/test environment, compute deterministic fallback vectors
-                embeddings.extend(fake_vector(t) for t in batch)
+                res_embeddings = data.get("embeddings") or []
+                if not res_embeddings:
+                    raise RuntimeError(f"Ollama returned empty embeddings for model '{settings.embed_model}'")
+                embeddings.extend(res_embeddings)
+            except Exception as exc:
+                raise RuntimeError(
+                    f"Failed to embed batch using pinned model '{settings.embed_model}' at {settings.ollama_url}: {exc}"
+                ) from exc
 
     return embeddings
