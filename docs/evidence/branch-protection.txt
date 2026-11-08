@@ -1,0 +1,18 @@
+# GitHub Branch Protection Rule Evidence
+
+Repository: github.com/zain10sheraz/rahbar
+Target Branch: main
+
+## Configured Branch Protection Settings:
+- Require a pull request before merging: ENABLED
+  - Required number of approvals: 1
+  - Dismiss stale pull request approvals when new commits are pushed: ENABLED
+- Require status checks to pass before merging: ENABLED
+  - Required checks:
+    - Lint & Unit Tests (lint-and-test)
+    - Manifest Conformance (kubeconform)
+    - Trivy Security Scan (security-scan)
+    - Ephemeral Cluster & Eval Gate (e2e-eval)
+  - Require branches to be up to date before merging: ENABLED
+- Do not allow bypassing the above settings: ENABLED
+- Restrict who can push to matching branches: ENABLED
