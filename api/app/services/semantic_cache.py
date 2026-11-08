@@ -1,9 +1,9 @@
 # api/app/services/semantic_cache.py
 """High‑level semantic cache used by the answer service.
 
-It stores the full `AskResponse` object keyed by the raw question string.
-The underlying storage is provided by :pymod:`api.app.services.cache` which
-uses Redis when ``CACHE_URL`` is defined, otherwise falls back to an
+It stores the full AskResponse object keyed by the raw question string.
+The underlying storage is provided by api.app.services.cache which
+uses Redis when CACHE_URL is defined, otherwise falls back to an
 in‑memory store. A modest TTL (default 300 seconds) is applied so that
 stale answers expire automatically.
 """
