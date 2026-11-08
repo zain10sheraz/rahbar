@@ -4,11 +4,39 @@ on:
   push:
     branches: [dev]
   pull_request:
-    branches: [dev]
+    branches: [main, dev]
+
+permissions:
+  contents: read
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run Python linter
+        run: |
+          pip install ruff
+          ruff check api/ indexer/ eval/
+
+  manifests:
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Kubernetes manifests with kubeconform
+        uses: yannh/kubeconform-action@v0.1.1
+        with:
+          k8s-version: '1.30.0'
+          files: 'k8s/base/ k8s/overlays/dev/'
+
   test:
     runs-on: ubuntu-latest
+    needs: lint
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python
@@ -20,7 +48,60 @@ jobs:
           python -m venv .venv
           . .venv/bin/activate
           pip install -r api/requirements-dev.txt -r indexer/requirements-dev.txt
-      - name: Run tests
+      - name: Run pytest
         run: |
           . .venv/bin/activate
-          make test
+          PYTHONPATH=api:indexer pytest api/tests indexer/tests -v
+
+  scan:
+    runs-on: ubuntu-latest
+    needs: [test, manifests]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build local images for scanning
+        run: |
+          docker build -t rahbar-api:${{ github.sha }} api
+          docker build -t rahbar-indexer:${{ github.sha }} indexer
+      - name: Trivy vulnerability scan
+        uses: aquasecurity/trivy-action@v0.28.0
+        with:
+          image-ref: rahbar-api:${{ github.sha }}
+          format: 'table'
+          exit-code: '0'
+          severity: 'CRITICAL,HIGH'
+
+  e2e-eval:
+    runs-on: ubuntu-latest
+    needs: [test, manifests]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Create kind cluster
+        uses: helm/kind-action@v1
+        with:
+          cluster_name: kind
+      - name: Build and load test images
+        run: |
+          docker build -t rahbar-api:${{ github.sha }} api
+          docker build -t rahbar-indexer:${{ github.sha }} indexer
+          docker build -t rahbar-ui:${{ github.sha }} ui
+          kind load docker-image rahbar-api:${{ github.sha }}
+          kind load docker-image rahbar-indexer:${{ github.sha }}
+          kind load docker-image rahbar-ui:${{ github.sha }}
+      - name: Deploy application
+        run: |
+          kubectl apply -k k8s/overlays/dev
+          kubectl rollout status deployment/rahbar-api -n rahbar --timeout=180s
+      - name: Run indexer Job on fixture corpus
+        run: |
+          kubectl apply -f k8s/base/job-indexer.yaml
+          kubectl wait --for=condition=complete job/rahbar-indexer -n rahbar --timeout=120s
+      - name: Run evaluation regression gate
+        run: |
+          python -m venv .venv
+          . .venv/bin/activate
+          pip install httpx pyyaml
+          python eval/run_eval.py --api http://localhost:8000 --golden eval/fixtures/golden.fixture.yaml
