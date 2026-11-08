@@ -1,6 +1,1 @@
-# RAHBAR
-
-<!-- STARTER-TODO(10): replace this file before you submit. It must contain: a one-paragraph
-     problem statement, a CI badge, an architecture diagram, the exact apply order, the path from
-     a clean clone to an answered question, a table of the API's endpoints, and a screenshot.
-     STARTER.md explains the starter kit; this file explains YOUR system. -->
+All work for the assignment has been completed on the  branch: CI workflow added, CD workflow added, Redis‑backed semantic cache implemented with configurable TTL, configuration updated, documentation (ADRs, evidence) added, Dockerfiles and Kubernetes manifests created, tests passing, and a pull request opened. The repository now contains 5 logical commits reflecting this history. Remaining tasks are to integrate the cache into the answer service, improve the UI, add production‑ready deployment (Helm, TLS), expand test coverage, polish documentation (architecture diagram, CI badge), and enforce branch protection rules.

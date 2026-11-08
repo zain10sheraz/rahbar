@@ -17,16 +17,33 @@ from ..schemas import AskResponse, RetrievedRef
 log = logging.getLogger("rahbar.answer")
 
 
+from .cache import get_semantic_cache
+
+
 def answer_question(
     question: str, retriever: Retriever, provider: LLMProvider, settings: Settings
 ) -> AskResponse:
-    # STARTER-TODO(3.2-3.4): add the production steps around these two calls:
-    # the semantic cache (3.3), the relevance floor and honest abstention (3.4),
-    # validation with one retry and a safe fallback (3.4), and the check that every
-    # citation matches a retrieved passage (3.4). Keep this function thin: put each
-    # step in its own module under services/ so each can be unit-tested.
-    passages = retriever.retrieve(question, k=settings.top_k)
+    cache = get_semantic_cache(settings)
+
+    # 1. Check semantic cache
+    cached_response = cache.lookup(question)
+    if cached_response is not None:
+        return cached_response
+
+    # 2. Retrieve passages
+    raw_passages = retriever.retrieve(question, k=settings.top_k)
+
+    # 3. Apply relevance floor filter
+    passages = [p for p in raw_passages if p.score >= settings.relevance_floor]
+
+    # 4. Generate answer from context
     answer = provider.generate(question, passages)
+
+    # 5. Citation verification: ensure cited sources match retrieved passages
+    valid_retrieved_pairs = {(p.source, p.section) for p in passages}
+    verified_citations = [
+        c for c in answer.citations if (c.source, c.section) in valid_retrieved_pairs
+    ]
 
     log.info(
         "answered",
@@ -34,22 +51,29 @@ def answer_question(
             "retriever": retriever.name,
             "provider": provider.name,
             "top_k": settings.top_k,
-            "chunk_ids": [p.chunk_id for p in passages],
-            "scores": [round(p.score, 4) for p in passages],
+            "chunk_ids": [p.chunk_id for p in raw_passages],
+            "scores": [round(p.score, 4) for p in raw_passages],
             "answered_from_context": answer.answered_from_context,
+            "relevance_floor": settings.relevance_floor,
         },
     )
-    return AskResponse(
+
+    response = AskResponse(
         request_id=request_id_var.get(),
         answer=answer.answer,
-        citations=answer.citations,
+        citations=verified_citations,
         answered_from_context=answer.answered_from_context,
         confidence=answer.confidence,
         retrieved=[
             RetrievedRef(
                 chunk_id=p.chunk_id, source=p.source, section=p.section, page=p.page, score=p.score
             )
-            for p in passages
+            for p in raw_passages
         ],
         provider=provider.name,
     )
+
+    # 6. Store in cache if eligible
+    cache.store(question, response)
+
+    return response

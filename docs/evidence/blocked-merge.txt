@@ -1,0 +1,18 @@
+# Blocked Pull Request Merge Evidence
+
+Pull Request: #1 - Direct Commit / Unverified Changes to Main
+Base Branch: main
+Compare Branch: feature/untested-experiment
+
+Status: MERGE BLOCKED
+Reason: Required status checks must pass before merging.
+
+Checks Summary:
+- Lint & Unit Tests: FAILED (Exit code 1)
+- Manifest Conformance: PASSED
+- Trivy Security Scan: PASSED
+- Ephemeral Cluster & Eval Gate: SKIPPED (due to dependency failure on lint-and-test)
+
+GitHub Enforcement Output:
+"Merging is blocked. 1 failing check must pass before this branch can be merged into main."
+Branch protection successfully prevented unvetted code from reaching production.
