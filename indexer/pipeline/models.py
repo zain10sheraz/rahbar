@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import time
+import uuid
 from dataclasses import dataclass, field
 
 
@@ -42,3 +44,9 @@ class Chunk:
             "doc_version": self.doc_version,
             "superseded": self.superseded,
         }
+
+
+def new_index_version() -> str:
+    """A fresh identifier for one index build. The API's semantic cache ignores any entry
+    stamped with a different version, so re-indexing expires the cache (section 3.3)."""
+    return f"{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}-{uuid.uuid4().hex[:8]}"
