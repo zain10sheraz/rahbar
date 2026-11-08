@@ -17,7 +17,7 @@ from ..schemas import AskResponse, RetrievedRef
 log = logging.getLogger("rahbar.answer")
 
 
-from .semantic_cache import get_semantic_cache
+from .cache import get_semantic_cache
 
 
 def answer_question(
@@ -26,9 +26,9 @@ def answer_question(
     cache = get_semantic_cache(settings)
 
     # 1. Check semantic cache
-    cached_response = cache.lookup(question)
-    if cached_response is not None:
-        return cached_response
+    hit = cache.lookup(question)
+    if hit is not None:
+        return hit[0]
 
     # 2. Retrieve passages
     raw_passages = retriever.retrieve(question, k=settings.top_k)
