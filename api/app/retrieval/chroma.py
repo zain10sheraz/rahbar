@@ -5,6 +5,8 @@ Connection details are already here; the query is not.
 
 from __future__ import annotations
 
+import time
+
 from ..config import Settings
 from ..schemas import Passage
 from ..services.embedding import embed_text
@@ -18,11 +20,25 @@ class ChromaRetriever:
         from chromadb.config import Settings as ChromaSettings
 
         self.settings = settings
+        self._version = ""
+        self._version_checked = float("-inf")
         self.client = chromadb.HttpClient(host=settings.chroma_host, port=settings.chroma_port,
                                           settings=ChromaSettings(anonymized_telemetry=False))
 
     def _embed_query(self, question: str) -> list[float]:
         return embed_text(self.settings, question)
+
+    def index_version(self) -> str:
+        """The indexer's build stamp (collection metadata), re-read at most every 10 s.
+        The semantic cache uses it to drop answers made against an older index."""
+        if time.monotonic() - self._version_checked > 10.0:
+            try:
+                meta = self.client.get_collection(self.settings.collection).metadata or {}
+                self._version = str(meta.get("index_version", ""))
+            except Exception:  # keep the last known version; readiness reports Chroma problems
+                pass
+            self._version_checked = time.monotonic()
+        return self._version
 
     def retrieve(self, question: str, k: int) -> list[Passage]:
         query_vector = self._embed_query(question)

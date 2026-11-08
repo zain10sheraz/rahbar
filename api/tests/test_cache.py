@@ -113,3 +113,30 @@ def test_embedding_failure_is_a_miss_not_an_error() -> None:
     cache = SemanticCache(Settings(), embedder=boom, backend=MemoryBackend())
     assert cache.lookup("What is the fee per credit hour?") is None
     assert cache.store("What is the fee per credit hour?", response()) is False
+
+
+def test_api_serves_a_repeat_question_from_cache_with_its_own_request_id(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from fastapi.testclient import TestClient
+
+    monkeypatch.setenv("RETRIEVER", "stub")
+    monkeypatch.setenv("LLM_PROVIDER", "stub")
+    from app.main import app
+
+    calls = {"n": 0}
+    with TestClient(app) as client:
+        from app.schemas import Answer
+
+        def counting(question: str, passages: list) -> Answer:  # type: ignore[type-arg]
+            calls["n"] += 1
+            return Answer(reasoning="r", answer="2.00", citations=[],
+                          answered_from_context=True, confidence="high")
+
+        monkeypatch.setattr(app.state.provider, "generate", counting)
+        q = {"question": "What does the stub say about caching?"}
+        first = client.post("/api/ask", json=q, headers={"X-Request-ID": "one"}).json()
+        second = client.post("/api/ask", json=q, headers={"X-Request-ID": "two"}).json()
+    assert calls["n"] == 1  # the second answer never reached the model
+    assert first["request_id"] == "one" and second["request_id"] == "two"
+    assert first["answer"] == second["answer"]

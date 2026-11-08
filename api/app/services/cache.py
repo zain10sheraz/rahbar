@@ -25,7 +25,6 @@ import re
 import time
 import uuid
 from collections.abc import Callable
-from functools import lru_cache
 from typing import Any, Protocol
 
 from ..config import Settings
@@ -198,9 +197,11 @@ class SemanticCache:
         return True
 
 
-@lru_cache(maxsize=1)
-def get_semantic_cache(settings: Settings) -> SemanticCache:
-    """Process-wide cache. The stub retriever uses hash vectors so tests need no model."""
+def build_semantic_cache(
+    settings: Settings, version_provider: Callable[[], str] | None = None
+) -> SemanticCache:
+    """Built once per process in the app's lifespan. The stub retriever uses hash vectors
+    so tests need no model."""
     if settings.retriever == "stub":
-        return SemanticCache(settings, embedder=hash_vector)
-    return SemanticCache(settings)
+        return SemanticCache(settings, embedder=hash_vector, version_provider=version_provider)
+    return SemanticCache(settings, version_provider=version_provider)
