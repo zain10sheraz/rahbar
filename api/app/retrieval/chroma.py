@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from ..config import Settings
 from ..schemas import Passage
+from ..services.embedding import embed_text
 
 
 class ChromaRetriever:
@@ -21,39 +22,7 @@ class ChromaRetriever:
                                           settings=ChromaSettings(anonymized_telemetry=False))
 
     def _embed_query(self, question: str) -> list[float]:
-        import hashlib
-        import math
-        import httpx
-
-        if self.settings.embed_model.startswith("dummy"):
-            dim = 768
-            values: list[float] = []
-            seed = question.encode()
-            while len(values) < dim:
-                seed = hashlib.sha256(seed).digest()
-                values.extend((b - 127.5) / 127.5 for b in seed)
-            values = values[:dim]
-            norm = math.sqrt(sum(v * v for v in values)) or 1.0
-            return [v / norm for v in values]
-
-        try:
-            with httpx.Client(timeout=10.0) as client:
-                res = client.post(
-                    f"{self.settings.ollama_url.rstrip('/')}/api/embed",
-                    json={"model": self.settings.embed_model, "input": [question]},
-                )
-                res.raise_for_status()
-                return res.json()["embeddings"][0]
-        except Exception:
-            dim = 768
-            values = []
-            seed = question.encode()
-            while len(values) < dim:
-                seed = hashlib.sha256(seed).digest()
-                values.extend((b - 127.5) / 127.5 for b in seed)
-            values = values[:dim]
-            norm = math.sqrt(sum(v * v for v in values)) or 1.0
-            return [v / norm for v in values]
+        return embed_text(self.settings, question)
 
     def retrieve(self, question: str, k: int) -> list[Passage]:
         query_vector = self._embed_query(question)
