@@ -11,8 +11,6 @@ import logging
 import httpx
 from pydantic import ValidationError
 
-from ...config import Settings
-from ...schemas import Answer, Citation, Passage
 
 log = logging.getLogger("rahbar.llm.ollama")
 

@@ -6,7 +6,6 @@ from .config import IndexerSettings
 
 
 import httpx
-from .config import IndexerSettings
 from .dummy import DUMMY_MODEL, fake_vector
 
 
