@@ -21,6 +21,7 @@ from .logjson import configure_logging, request_id_var
 from .providers.llm import get_provider
 from .retrieval import get_retriever
 from .routes import ask, health, metrics
+from .services.cache import build_semantic_cache
 
 log = logging.getLogger("rahbar.api")
 
@@ -32,8 +33,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.settings = settings
     app.state.retriever = get_retriever(settings)
     app.state.provider = get_provider(settings)
-    # STARTER-TODO(4.4): compare the collection's embedding-model metadata with
-    # settings.embed_model here, and make /readyz fail on a mismatch.
+    app.state.cache = build_semantic_cache(
+        settings, getattr(app.state.retriever, "index_version", None)
+    )
+    # Guardrail (4.4): compare the collection's embedding-model metadata with
+    # settings.embed_model; /readyz reports a 503 failure on any mismatch.
     # This process only reads the index. The indexer Job writes it.
     log.info(
         "api started",

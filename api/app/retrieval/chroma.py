@@ -5,8 +5,11 @@ Connection details are already here; the query is not.
 
 from __future__ import annotations
 
+import time
+
 from ..config import Settings
 from ..schemas import Passage
+from ..services.embedding import embed_text
 
 
 class ChromaRetriever:
@@ -17,43 +20,25 @@ class ChromaRetriever:
         from chromadb.config import Settings as ChromaSettings
 
         self.settings = settings
+        self._version = ""
+        self._version_checked = float("-inf")
         self.client = chromadb.HttpClient(host=settings.chroma_host, port=settings.chroma_port,
                                           settings=ChromaSettings(anonymized_telemetry=False))
 
     def _embed_query(self, question: str) -> list[float]:
-        import hashlib
-        import math
-        import httpx
+        return embed_text(self.settings, question)
 
-        if self.settings.embed_model.startswith("dummy"):
-            dim = 768
-            values: list[float] = []
-            seed = question.encode()
-            while len(values) < dim:
-                seed = hashlib.sha256(seed).digest()
-                values.extend((b - 127.5) / 127.5 for b in seed)
-            values = values[:dim]
-            norm = math.sqrt(sum(v * v for v in values)) or 1.0
-            return [v / norm for v in values]
-
-        try:
-            with httpx.Client(timeout=10.0) as client:
-                res = client.post(
-                    f"{self.settings.ollama_url.rstrip('/')}/api/embed",
-                    json={"model": self.settings.embed_model, "input": [question]},
-                )
-                res.raise_for_status()
-                return res.json()["embeddings"][0]
-        except Exception:
-            dim = 768
-            values = []
-            seed = question.encode()
-            while len(values) < dim:
-                seed = hashlib.sha256(seed).digest()
-                values.extend((b - 127.5) / 127.5 for b in seed)
-            values = values[:dim]
-            norm = math.sqrt(sum(v * v for v in values)) or 1.0
-            return [v / norm for v in values]
+    def index_version(self) -> str:
+        """The indexer's build stamp (collection metadata), re-read at most every 10 s.
+        The semantic cache uses it to drop answers made against an older index."""
+        if time.monotonic() - self._version_checked > 10.0:
+            try:
+                meta = self.client.get_collection(self.settings.collection).metadata or {}
+                self._version = str(meta.get("index_version", ""))
+            except Exception:  # keep the last known version; readiness reports Chroma problems
+                pass
+            self._version_checked = time.monotonic()
+        return self._version
 
     def retrieve(self, question: str, k: int) -> list[Passage]:
         query_vector = self._embed_query(question)

@@ -5,12 +5,12 @@ metadata:
   namespace: rahbar
 data:
   # Retriever & LLM provider settings
-  RETRIEVER: "stub"
-  LLM_PROVIDER: "stub"
-  LLM_MODEL: "llama3.2:3b"
+  RETRIEVER: "chroma"
+  LLM_PROVIDER: "ollama-host"
+  LLM_MODEL: "qwen2.5:3b"
 
   # Embedding pin: indexer writes it into Chroma metadata, API checks at startup
-  EMBED_MODEL: "dummy-768"
+  EMBED_MODEL: "nomic-embed-text"
 
   # Chroma vector store
   CHROMA_HOST: "chroma"

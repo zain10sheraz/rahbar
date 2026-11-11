@@ -15,7 +15,7 @@ import math
 from typing import Any
 
 from .config import IndexerSettings
-from .models import Chunk
+from .models import Chunk, new_index_version
 
 DUMMY_MODEL = "dummy-768"
 DUMMY_DIM = 768
@@ -50,7 +50,8 @@ def write_dummy_index(settings: IndexerSettings, client: Any) -> int:
         pass
     collection = client.create_collection(
         name=settings.collection,
-        metadata={"hnsw:space": "cosine", "embed_model": DUMMY_MODEL, "dimension": DUMMY_DIM},
+        metadata={"hnsw:space": "cosine", "embed_model": DUMMY_MODEL, "dimension": DUMMY_DIM,
+                  "index_version": new_index_version()},
     )
     collection.add(
         ids=[c.id for c in DUMMY_CHUNKS],

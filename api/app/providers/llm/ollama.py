@@ -11,8 +11,6 @@ import logging
 import httpx
 from pydantic import ValidationError
 
-from ...config import Settings
-from ...schemas import Answer, Citation, Passage
 
 log = logging.getLogger("rahbar.llm.ollama")
 
@@ -45,7 +43,7 @@ class OllamaProvider:
 
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
-        self.timeout = 30.0
+        self.timeout = 120.0  # CPU inference of a 3B model is slow, especially on a cold start
 
     def generate(self, question: str, passages: list[Passage]) -> Answer:
         # If no passages passed relevance floor, immediately abstain

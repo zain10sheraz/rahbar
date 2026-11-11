@@ -65,3 +65,12 @@ def test_discover_reads_fixture_front_matter() -> None:
     found = {p.name: (version, old) for p, version, old in discover(str(fixtures))}
     assert found["academic-rules-2023.md"] == ("2023", True)
     assert found["academic-rules-2026.md"] == ("2026", False)
+
+
+def test_every_rebuild_stamps_a_new_index_version() -> None:
+    client = FakeClient()
+    write_dummy_index(get_settings(), client)
+    first = client.collections["rahbar"].metadata["index_version"]
+    write_dummy_index(get_settings(), client)
+    second = client.collections["rahbar"].metadata["index_version"]
+    assert first and second and first != second
