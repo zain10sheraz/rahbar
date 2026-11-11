@@ -16,6 +16,33 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # kubeconform has no GitHub Action (yannh/kubeconform-action does not exist); it ships as
+  # a release binary, so download a pinned version and check its sha256 before using it.
+  manifests:
+    name: manifests
+    runs-on: ubuntu-latest
+    env:
+      KUBECONFORM_VERSION: v0.6.7
+      KUBERNETES_VERSION: 1.30.0
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install kubeconform
+        run: |
+          base="https://github.com/yannh/kubeconform/releases/download/${KUBECONFORM_VERSION}"
+          curl -fsSLO "${base}/kubeconform-linux-amd64.tar.gz"
+          curl -fsSLO "${base}/CHECKSUMS"
+          grep ' kubeconform-linux-amd64.tar.gz$' CHECKSUMS | sha256sum -c -
+          tar -xzf kubeconform-linux-amd64.tar.gz kubeconform
+          sudo install kubeconform /usr/local/bin/kubeconform
+      - name: Validate rendered dev and prod overlays
+        run: |
+          for overlay in dev prod; do
+            echo "== ${overlay}"
+            kubectl kustomize "k8s/overlays/${overlay}" \
+              | kubeconform -strict -summary -ignore-missing-schemas \
+                  -kubernetes-version "${KUBERNETES_VERSION}" -
+          done
+
   test:
     name: test
     runs-on: ubuntu-latest
