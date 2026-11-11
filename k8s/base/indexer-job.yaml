@@ -23,7 +23,6 @@ spec:
         - name: indexer
           image: rahbar-indexer:dev
           imagePullPolicy: IfNotPresent
-          args: ["--dummy"]
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
@@ -36,16 +35,23 @@ spec:
           resources:
             requests:
               cpu: 200m
-              memory: 256Mi
+              memory: 512Mi
             limits:
               cpu: 1000m
-              memory: 1024Mi
+              memory: 2048Mi
           volumeMounts:
             - name: tmp
               mountPath: /tmp
+            - name: corpus
+              mountPath: /corpus
+              readOnly: true
       volumes:
         - name: tmp
           emptyDir: {}
+        - name: corpus
+          hostPath:
+            path: /corpus
+            type: Directory
 ---
 apiVersion: batch/v1
 kind: CronJob
@@ -78,7 +84,6 @@ spec:
             - name: indexer
               image: rahbar-indexer:dev
               imagePullPolicy: IfNotPresent
-              args: ["--dummy"]
               securityContext:
                 allowPrivilegeEscalation: false
                 readOnlyRootFilesystem: true
@@ -91,13 +96,20 @@ spec:
               resources:
                 requests:
                   cpu: 200m
-                  memory: 256Mi
+                  memory: 512Mi
                 limits:
                   cpu: 1000m
-                  memory: 1024Mi
+                  memory: 2048Mi
               volumeMounts:
                 - name: tmp
                   mountPath: /tmp
+                - name: corpus
+                  mountPath: /corpus
+                  readOnly: true
           volumes:
             - name: tmp
               emptyDir: {}
+            - name: corpus
+              hostPath:
+                path: /corpus
+                type: Directory
