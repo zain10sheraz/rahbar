@@ -39,6 +39,9 @@ class Settings:
     relevance_floor: float = 0.50
     cache_threshold: float = 0.90
     cache_ttl: int = 300
+    # Semantic cache store. Empty host = in-process memory (tests and `make dev`).
+    redis_host: str = ""
+    redis_port: int = 6379
     llm_model: str = "llama3.2:3b"
     ollama_url: str = "http://host.minikube.internal:11434"
     hosted_base_url: str = ""        # e.g. an OpenAI-compatible endpoint
@@ -59,6 +62,9 @@ def get_settings() -> Settings:
         temperature=_float("TEMPERATURE", 0.2),
         relevance_floor=_float("RELEVANCE_FLOOR", 0.50),
         cache_threshold=_float("CACHE_THRESHOLD", 0.90),
+        cache_ttl=_int("CACHE_TTL", 300),
+        redis_host=os.environ.get("REDIS_HOST", ""),
+        redis_port=_int("REDIS_PORT", 6379),
         llm_model=os.environ.get("LLM_MODEL", "llama3.2:3b"),
         ollama_url=os.environ.get("OLLAMA_URL", "http://host.minikube.internal:11434"),
         hosted_base_url=os.environ.get("HOSTED_BASE_URL", ""),

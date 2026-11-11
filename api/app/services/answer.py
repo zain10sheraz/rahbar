@@ -13,22 +13,24 @@ from ..logjson import request_id_var
 from ..providers.llm.base import LLMProvider
 from ..retrieval.base import Retriever
 from ..schemas import AskResponse, RetrievedRef
+from .cache import SemanticCache
 
 log = logging.getLogger("rahbar.answer")
 
 
-from .semantic_cache import get_semantic_cache
-
-
 def answer_question(
-    question: str, retriever: Retriever, provider: LLMProvider, settings: Settings
+    question: str,
+    retriever: Retriever,
+    provider: LLMProvider,
+    settings: Settings,
+    cache: SemanticCache,
 ) -> AskResponse:
-    cache = get_semantic_cache(settings)
 
     # 1. Check semantic cache
-    cached_response = cache.lookup(question)
-    if cached_response is not None:
-        return cached_response
+    hit = cache.lookup(question)
+    if hit is not None:
+        log.info("cache hit", extra={"similarity": round(hit[1], 4)})
+        return hit[0].model_copy(update={"request_id": request_id_var.get()})
 
     # 2. Retrieve passages
     raw_passages = retriever.retrieve(question, k=settings.top_k)

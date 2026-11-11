@@ -3,7 +3,7 @@
 ## 0 · Starter Kit Cleanup
 | Item | Status |
 |------|--------|
-| All STARTER-TODO markers removed | Done |
+| All starter placeholders and TODO markers removed | Done |
 | All raise NotImplementedError removed | Done |
 
 ---

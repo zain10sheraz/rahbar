@@ -8,7 +8,6 @@ from .models import Chunk, Document
 import hashlib
 import re
 
-from .models import Chunk, Document
 
 
 _HEADING_REGEX = re.compile(

@@ -104,7 +104,7 @@ def test_schema_failure_fallback_path() -> None:
 
 def test_semantic_cache_never_cache_rules() -> None:
     from app.config import Settings
-    from app.services.semantic_cache import SemanticCache
+    from app.services.cache import SemanticCache
     from app.schemas import AskResponse
 
     cache = SemanticCache(Settings())

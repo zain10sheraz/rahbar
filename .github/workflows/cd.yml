@@ -1,33 +1,72 @@
-name: CD (dev)
+name: CD
 
 on:
   push:
-    branches: [dev]
+    branches: [main]
+
+permissions:
+  contents: read
 
 jobs:
-  deploy:
+  test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Minikube
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run unit tests
         run: |
-          sudo apt-get update && sudo apt-get install -y conntrack
-          curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
-          sudo install minikube-linux-amd64 /usr/local/bin/minikube
-          minikube start --driver=docker --cni=calico
-          minikube addons enable ingress
-      - name: Build Docker images
-        run: |
-          docker build -t rahbar-api:dev api
-          docker build -t rahbar-indexer:dev indexer
-          docker build -t rahbar-ui:dev ui
-          minikube image load rahbar-api:dev
-          minikube image load rahbar-indexer:dev
-          minikube image load rahbar-ui:dev
-      - name: Apply manifests
+          python -m venv .venv
+          . .venv/bin/activate
+          pip install -r api/requirements-dev.txt -r indexer/requirements-dev.txt
+          PYTHONPATH=api:indexer pytest api/tests indexer/tests
+
+  build-publish:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Build and push API image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./api
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/rahbar-api:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/rahbar-api:${{ github.sha }}
+      - name: Build and push Indexer image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./indexer
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/rahbar-indexer:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/rahbar-indexer:${{ github.sha }}
+      - name: Build and push UI image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./ui
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/rahbar-ui:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/rahbar-ui:${{ github.sha }}
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build-publish
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy to cluster
         run: |
           kubectl apply -k k8s/overlays/dev
-      - name: Verify deployment
+      - name: Wait for rollout
         run: |
-          kubectl get pods -n rahbar
-          kubectl wait --for=condition=Ready pod -l app=api -n rahbar --timeout=120s
+          kubectl rollout status deployment/rahbar-api -n rahbar --timeout=180s
+          kubectl rollout status deployment/rahbar-ui -n rahbar --timeout=180s

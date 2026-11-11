@@ -14,7 +14,7 @@ import pypdf
 import pytesseract
 from pdf2image import convert_from_path
 
-from .models import Document, Page
+from .models import Page
 
 
 def _extract_pdf(file_path: Path) -> list[Page]:

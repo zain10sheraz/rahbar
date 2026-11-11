@@ -6,7 +6,7 @@ from .models import Document
 
 
 import re
-from .models import Document, Page
+from .models import Page
 
 
 def clean(doc: Document) -> Document:
