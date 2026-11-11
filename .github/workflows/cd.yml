@@ -58,15 +58,53 @@ jobs:
             ${{ secrets.DOCKERHUB_USERNAME }}/rahbar-ui:latest
             ${{ secrets.DOCKERHUB_USERNAME }}/rahbar-ui:${{ github.sha }}
 
+  # Deploys the images this run just pushed, tagged with the commit SHA, to an ephemeral
+  # kind cluster (a GitHub runner has no persistent cluster). The ci overlay uses the stub
+  # LLM and dummy index, so this proves the published images start and serve requests.
   deploy:
     runs-on: ubuntu-latest
     needs: build-publish
+    env:
+      REGISTRY: ${{ secrets.DOCKERHUB_USERNAME }}
+      TAG: ${{ github.sha }}
     steps:
       - uses: actions/checkout@v4
-      - name: Deploy to cluster
+      - name: Create kind cluster
+        uses: helm/kind-action@v1
+        with:
+          cluster_name: kind
+      - name: Pull the published images into the cluster
         run: |
-          kubectl apply -k k8s/overlays/dev
-      - name: Wait for rollout
+          for image in rahbar-api rahbar-indexer rahbar-ui; do
+            docker pull "${REGISTRY}/${image}:${TAG}"
+            kind load docker-image "${REGISTRY}/${image}:${TAG}" --name kind
+          done
+      - name: Deploy the SHA-tagged images
         run: |
-          kubectl rollout status deployment/rahbar-api -n rahbar --timeout=180s
-          kubectl rollout status deployment/rahbar-ui -n rahbar --timeout=180s
+          kubectl kustomize k8s/overlays/ci \
+            | sed -E "s#image: rahbar-(api|indexer|ui):dev#image: ${REGISTRY}/rahbar-\1:${TAG}#" \
+            | kubectl apply -f -
+          kubectl rollout status statefulset/chroma -n rahbar --timeout=180s
+          kubectl rollout status deployment/redis -n rahbar --timeout=120s
+      - name: Wait for the indexer Job, then the rollout
+        run: |
+          kubectl wait --for=condition=complete job/indexer -n rahbar --timeout=180s \
+            || { kubectl logs job/indexer -n rahbar --tail=50; exit 1; }
+          kubectl rollout status deployment/api -n rahbar --timeout=180s
+          kubectl rollout status deployment/ui -n rahbar --timeout=180s
+      - name: Smoke test
+        run: |
+          kubectl port-forward -n rahbar svc/api 8000:8000 &
+          for i in $(seq 1 30); do
+            curl -fs http://localhost:8000/readyz >/dev/null && break
+            sleep 2
+          done
+          curl -fs http://localhost:8000/readyz
+          curl -fs -X POST http://localhost:8000/api/ask \
+            -H 'Content-Type: application/json' \
+            -d '{"question": "What is the attendance requirement?"}'
+      - name: Show pod state on failure
+        if: failure()
+        run: |
+          kubectl get pods -n rahbar
+          kubectl describe pods -n rahbar | tail -60
